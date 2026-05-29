@@ -1,0 +1,38 @@
+[
+  {
+    "firstName": "Mohanad",
+    "lastName": "Yehia",
+    "totalPrice": 320,
+    "depositPaid": true,
+    "checkIn": "2026-04-10",
+    "checkOut": "2026-04-15",
+    "additionalNeeds": "Late checkout",
+    "updatedFirstName": "Mohanad",
+    "updatedLastName": "QA-Automation",
+    "updatedTotalPrice": 450,
+    "updatedDepositPaid": false,
+    "updatedCheckIn": "2026-05-01",
+    "updatedCheckOut": "2026-05-03",
+    "updatedAdditionalNeeds": "Airport pickup",
+    "patchedAdditionalNeeds": "Executive breakfast",
+    "filterFirstName": "Sally"
+  },
+  {
+    "firstName": "Nour",
+    "lastName": "Regression",
+    "totalPrice": 210,
+    "depositPaid": false,
+    "checkIn": "2026-06-12",
+    "checkOut": "2026-06-16",
+    "additionalNeeds": "Twin beds",
+    "updatedFirstName": "Nour",
+    "updatedLastName": "Contract-Check",
+    "updatedTotalPrice": 280,
+    "updatedDepositPaid": true,
+    "updatedCheckIn": "2026-07-01",
+    "updatedCheckOut": "2026-07-04",
+    "updatedAdditionalNeeds": "Quiet room",
+    "patchedAdditionalNeeds": "Breakfast tray",
+    "filterFirstName": "Jim"
+  }
+]

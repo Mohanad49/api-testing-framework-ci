@@ -1,0 +1,775 @@
+{
+  "info": {
+    "_postman_id": "d904840d-0d96-4b83-8ef1-b8f863b2d9a0",
+    "name": "Restful Booker API Testing Framework",
+    "description": "Production-style API automation collection covering health, authentication, CRUD lifecycle, negative paths, schema checks, and CI evidence reporting for the Restful Booker public API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get(\"run_id\")) {",
+          "  pm.environment.set(\"run_id\", Date.now().toString());",
+          "}",
+          "pm.environment.set(\"generated_email\", `qa.${pm.environment.get(\"run_id\")}@example.test`);"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://restful-booker.herokuapp.com",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Smoke Contract",
+      "description": "Fast checks that verify API availability and the basic booking contract.",
+      "item": [
+        {
+          "name": "Ping API availability",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"ping returns Created status\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ping",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ping"
+              ]
+            },
+            "description": "Validates the API health endpoint before deeper tests run."
+          },
+          "response": []
+        },
+        {
+          "name": "List booking IDs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"booking list responds successfully\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"response body is an array\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "pm.test(\"booking id contract is stable when records exist\", function () {",
+                  "  const data = pm.response.json();",
+                  "  if (data.length > 0) {",
+                  "    pm.expect(data[0]).to.have.property(\"bookingid\");",
+                  "    pm.expect(data[0].bookingid).to.be.a(\"number\");",
+                  "    pm.environment.set(\"seed_booking_id\", data[0].bookingid);",
+                  "  }",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking"
+              ]
+            },
+            "description": "Checks the discovery endpoint and stores one seed booking ID when available."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 Auth Contract",
+      "description": "Authentication checks that prove token creation and bad-credential behavior.",
+      "item": [
+        {
+          "name": "Create auth token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"auth request succeeds\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"auth response contains token\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.have.property(\"token\");",
+                  "  pm.expect(data.token).to.be.a(\"string\").and.not.empty;",
+                  "  pm.environment.set(\"token\", data.token);",
+                  "});",
+                  "",
+                  "pm.test(\"token does not look like a placeholder\", function () {",
+                  "  pm.expect(pm.environment.get(\"token\")).to.not.equal(\"abc123\");",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth"
+              ]
+            },
+            "description": "Creates a valid token used by update and delete requests.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reject invalid credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"invalid auth returns handled response\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"invalid auth does not return a token\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.not.have.property(\"token\");",
+                  "  pm.expect(data).to.have.property(\"reason\");",
+                  "  pm.expect(data.reason).to.eql(\"Bad credentials\");",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth"
+              ]
+            },
+            "description": "Documents the API's known bad-credentials behavior without poisoning the valid token.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"definitely-wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 Booking CRUD Lifecycle",
+      "description": "End-to-end create/read/update/patch/delete flow with state carried through environment variables.",
+      "item": [
+        {
+          "name": "Create booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"create booking succeeds\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"create response includes booking id and booking object\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.have.property(\"bookingid\");",
+                  "  pm.expect(data.bookingid).to.be.a(\"number\");",
+                  "  pm.expect(data).to.have.property(\"booking\");",
+                  "  pm.environment.set(\"booking_id\", data.bookingid);",
+                  "});",
+                  "",
+                  "pm.test(\"created booking echoes submitted guest data\", function () {",
+                  "  const data = pm.response.json().booking;",
+                  "  pm.expect(data.firstname).to.eql(pm.iterationData.get(\"firstName\"));",
+                  "  pm.expect(data.lastname).to.eql(pm.iterationData.get(\"lastName\"));",
+                  "  pm.expect(data.additionalneeds).to.eql(pm.iterationData.get(\"additionalNeeds\"));",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking"
+              ]
+            },
+            "description": "Creates a booking from iteration data and stores the generated booking ID.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"{{firstName}}\",\n  \"lastname\": \"{{lastName}}\",\n  \"totalprice\": {{totalPrice}},\n  \"depositpaid\": {{depositPaid}},\n  \"bookingdates\": {\n    \"checkin\": \"{{checkIn}}\",\n    \"checkout\": \"{{checkOut}}\"\n  },\n  \"additionalneeds\": \"{{additionalNeeds}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Read created booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"read created booking succeeds\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"created booking has expected schema\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.include.keys([\"firstname\", \"lastname\", \"totalprice\", \"depositpaid\", \"bookingdates\", \"additionalneeds\"]);",
+                  "  pm.expect(data.bookingdates).to.include.keys([\"checkin\", \"checkout\"]);",
+                  "});",
+                  "",
+                  "pm.test(\"created booking values are persisted\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.firstname).to.eql(pm.iterationData.get(\"firstName\"));",
+                  "  pm.expect(data.lastname).to.eql(pm.iterationData.get(\"lastName\"));",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{booking_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            },
+            "description": "Reads the booking created in the previous step and validates persistence."
+          },
+          "response": []
+        },
+        {
+          "name": "Update full booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"full update succeeds\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"full update persists submitted fields\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.firstname).to.eql(pm.iterationData.get(\"updatedFirstName\"));",
+                  "  pm.expect(data.lastname).to.eql(pm.iterationData.get(\"updatedLastName\"));",
+                  "  pm.expect(data.additionalneeds).to.eql(pm.iterationData.get(\"updatedAdditionalNeeds\"));",
+                  "});",
+                  "",
+                  "pm.test(\"price and deposit data types are respected\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.totalprice).to.be.a(\"number\");",
+                  "  pm.expect(data.depositpaid).to.be.a(\"boolean\");",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{booking_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            },
+            "description": "Validates authenticated PUT update behavior.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"{{updatedFirstName}}\",\n  \"lastname\": \"{{updatedLastName}}\",\n  \"totalprice\": {{updatedTotalPrice}},\n  \"depositpaid\": {{updatedDepositPaid}},\n  \"bookingdates\": {\n    \"checkin\": \"{{updatedCheckIn}}\",\n    \"checkout\": \"{{updatedCheckOut}}\"\n  },\n  \"additionalneeds\": \"{{updatedAdditionalNeeds}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Patch booking additional need",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"partial update succeeds\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"patched field is updated\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.additionalneeds).to.eql(pm.iterationData.get(\"patchedAdditionalNeeds\"));",
+                  "});",
+                  "",
+                  "pm.test(\"unpatched identity fields remain stable\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data.firstname).to.eql(pm.iterationData.get(\"updatedFirstName\"));",
+                  "  pm.expect(data.lastname).to.eql(pm.iterationData.get(\"updatedLastName\"));",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{booking_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            },
+            "description": "Validates authenticated PATCH behavior and guards against accidental data loss.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"additionalneeds\": \"{{patchedAdditionalNeeds}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"delete booking returns accepted deletion status\", function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test(\"booking id was available before deletion\", function () {",
+                  "  pm.expect(pm.environment.get(\"booking_id\")).to.not.be.undefined;",
+                  "  pm.expect(Number(pm.environment.get(\"booking_id\"))).to.be.a(\"number\");",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{booking_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            },
+            "description": "Deletes the booking created by the current iteration."
+          },
+          "response": []
+        },
+        {
+          "name": "Verify deleted booking is gone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"deleted booking is not found\", function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"deleted booking response is intentionally empty or not found text\", function () {",
+                  "  pm.expect(pm.response.text().length).to.be.at.most(80);",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/{{booking_id}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking",
+                "{{booking_id}}"
+              ]
+            },
+            "description": "Confirms cleanup by attempting to read the deleted booking."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 Query and Negative Coverage",
+      "description": "Independent query and negative-path checks that do not mutate data.",
+      "item": [
+        {
+          "name": "Filter bookings by first name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"filtered booking query succeeds\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"filtered query returns an array contract\", function () {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.be.an(\"array\");",
+                  "  data.forEach(row => pm.expect(row).to.have.property(\"bookingid\"));",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking?firstname={{filterFirstName}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking"
+              ],
+              "query": [
+                {
+                  "key": "firstname",
+                  "value": "{{filterFirstName}}"
+                }
+              ]
+            },
+            "description": "Verifies query endpoint shape without assuming public test data is stable."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject unknown booking id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"unknown booking id returns not found\", function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test(\"unknown booking does not return JSON booking payload\", function () {",
+                  "  pm.expect(pm.response.text()).to.not.include(\"firstname\");",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/999999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking",
+                "999999999"
+              ]
+            },
+            "description": "Negative read check for a non-existent booking."
+          },
+          "response": []
+        },
+        {
+          "name": "Reject unauthenticated full update",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"unauthenticated update is forbidden\", function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"forbidden response does not expose booking data\", function () {",
+                  "  pm.expect(pm.response.text()).to.not.include(\"Unauthorized\");",
+                  "});",
+                  "",
+                  "pm.test(\"response time is below configured SLA\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(Number(pm.environment.get(\"response_time_sla_ms\")) || 5000);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/booking/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking",
+                "1"
+              ]
+            },
+            "description": "Security check proving protected mutation requires authentication.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Unauthorized\",\n  \"lastname\": \"Attempt\",\n  \"totalprice\": 1,\n  \"depositpaid\": true,\n  \"bookingdates\": {\n    \"checkin\": \"2026-01-01\",\n    \"checkout\": \"2026-01-02\"\n  },\n  \"additionalneeds\": \"No token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

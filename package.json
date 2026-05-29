@@ -1,0 +1,30 @@
+{
+  "name": "api-testing-framework-ci",
+  "version": "1.0.0",
+  "description": "Production-style Postman/Newman API testing framework with CI and published HTML evidence reports.",
+  "private": true,
+  "scripts": {
+    "test:api": "newman run collections/restful-booker.postman_collection.json -e environments/local.postman_environment.json --iteration-data data/booking-data.json --reporters cli,json,junit,htmlextra --reporter-json-export reports/newman/summary.json --reporter-junit-export reports/newman/junit.xml --reporter-htmlextra-export reports/newman/newman-report.html --reporter-htmlextra-title 'Restful Booker API Evidence' --reporter-htmlextra-browserTitle 'API Evidence Report' --reporter-htmlextra-showEnvironmentData false --reporter-htmlextra-skipSensitiveData true",
+    "test:api:cli": "newman run collections/restful-booker.postman_collection.json -e environments/local.postman_environment.json --iteration-data data/booking-data.json --reporters cli",
+    "test:smoke": "newman run collections/restful-booker.postman_collection.json -e environments/local.postman_environment.json --folder '00 Smoke Contract' --reporters cli",
+    "build:report-hub": "node scripts/build-report-hub.js",
+    "clean": "node scripts/clean.js"
+  },
+  "keywords": [
+    "postman",
+    "newman",
+    "api-testing",
+    "qa-automation",
+    "github-actions",
+    "html-report"
+  ],
+  "author": "Mohanad Yehia",
+  "license": "MIT",
+  "devDependencies": {
+    "newman": "^6.2.2",
+    "newman-reporter-htmlextra": "^1.23.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

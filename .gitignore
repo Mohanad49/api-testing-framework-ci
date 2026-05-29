@@ -1,0 +1,8 @@
+node_modules/
+.env
+reports/newman/*.json
+reports/newman/*.xml
+reports/newman/*.html
+public/
+.DS_Store
+npm-debug.log*
