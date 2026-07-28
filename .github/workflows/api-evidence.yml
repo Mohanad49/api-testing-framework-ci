@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  # Nightly. This suite already emits JUnit, so the only thing it was missing to
+  # be useful for flake detection was runs.
+  schedule:
+    - cron: "0 2 * * *"
 
 permissions:
   contents: read
@@ -17,7 +21,10 @@ env:
 
 concurrency:
   group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  # Never cancel a scheduled run. On a pull request a superseded run is waste; on
+  # a schedule it is a data point the flake detection is counting, and cancelling
+  # it silently removes evidence.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   api-tests:
@@ -73,3 +80,42 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  # Repeat runs of one unchanged commit, on a schedule only.
+  #
+  # Newman already writes JUnit, so this suite needed nothing but runs. Three
+  # against the same SHA give the same-commit strategy something to compare;
+  # without repetition it can only ever report "no evidence".
+  #
+  # Separate from `api-tests` because that job builds and publishes the report
+  # hub, and parallel copies would race on Pages.
+  repeat:
+    name: Repeat run ${{ matrix.attempt }}
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      # A failing run is the data being collected, not a broken pipeline.
+      - name: Run Postman collection with Newman
+        continue-on-error: true
+        run: npm run test:api
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-attempt-${{ matrix.attempt }}
+          path: reports/
+          retention-days: 30
