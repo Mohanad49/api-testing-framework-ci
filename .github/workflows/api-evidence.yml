@@ -61,6 +61,30 @@ jobs:
             public
           retention-days: 14
 
+      # Feed this run into TestPulse, which is what puts this suite on the
+      # public dashboard at testpulse-eight.vercel.app.
+      #
+      # always(), because a failing run is the data point that matters most -
+      # skipping ingest on red would mean the flake history only ever sees green.
+      #
+      # Not on pull requests: branches that may never merge would pollute the
+      # history, and the flake numbers would end up describing code nobody runs.
+      - name: Record the run in TestPulse
+        if: always() && github.event_name != 'pull_request'
+        continue-on-error: true
+        uses: Mohanad49/testpulse@main
+        with:
+          # Newman writes one testcase per assertion rather than per request, so
+          # a "test" here is an assertion. That is fine as long as it stays
+          # consistent - the names are stable, which is what history joining
+          # actually needs.
+          path: reports/newman/junit.xml
+          format: junit
+          suite: restful-booker-api
+          database-url: ${{ secrets.TESTPULSE_DATABASE_URL }}
+          dashboard-url: https://testpulse-eight.vercel.app
+          comment: "false"
+
       - name: Upload GitHub Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
@@ -119,3 +143,18 @@ jobs:
           name: results-attempt-${{ matrix.attempt }}
           path: reports/
           retention-days: 30
+
+      # Each attempt is stored as its own run. TestPulse's natural key includes
+      # the start time, so three runs of one unchanged commit do not collapse
+      # into one - which is the entire reason this job exists.
+      - name: Record the run in TestPulse
+        if: always()
+        continue-on-error: true
+        uses: Mohanad49/testpulse@main
+        with:
+          path: reports/newman/junit.xml
+          format: junit
+          suite: restful-booker-api
+          database-url: ${{ secrets.TESTPULSE_DATABASE_URL }}
+          dashboard-url: https://testpulse-eight.vercel.app
+          comment: "false"
